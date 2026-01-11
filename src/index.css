@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Custom accessible defaults for dementia-friendly design */
+:root {
+  /* Calming color palette */
+  --color-primary: #4a90a4;
+  --color-primary-dark: #357a8c;
+  --color-success: #5cb85c;
+  --color-error: #d9534f;
+  --color-warning: #f0ad4e;
+  --color-background: #f5f7fa;
+  --color-text: #2c3e50;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* Large, accessible focus states */
+*:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
