@@ -6,6 +6,15 @@ import { Card } from '../ui/Card'
 import { getRandomWords } from '../../data/vocabulary'
 import { updateGameSession, markGameCompleted } from '../../lib/storage'
 
+// Remove Vietnamese diacritics for flexible matching
+function removeVietnameseDiacritics(str) {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+}
+
 export function TranslationGame() {
   const navigate = useNavigate()
   const [mode, setMode] = useState(null) // null, 'vi-to-en', 'en-to-vi', 'mixed'
@@ -70,10 +79,16 @@ export function TranslationGame() {
       ? currentWord.en.toLowerCase()
       : currentWord.vi.toLowerCase()
 
-    // Allow for some flexibility in matching
+    // For Vietnamese answers, also compare without diacritics
+    const userAnswerNormalized = removeVietnameseDiacritics(userAnswer)
+    const correctAnswerNormalized = removeVietnameseDiacritics(correctAnswer)
+
+    // Allow for flexible matching (exact, partial, or without diacritics)
     const isCorrect = userAnswer === correctAnswer ||
+                      userAnswerNormalized === correctAnswerNormalized ||
                       correctAnswer.includes(userAnswer) && userAnswer.length >= 3 ||
-                      userAnswer.includes(correctAnswer)
+                      userAnswer.includes(correctAnswer) ||
+                      correctAnswerNormalized.includes(userAnswerNormalized) && userAnswerNormalized.length >= 3
 
     setFeedback(isCorrect ? 'correct' : 'incorrect')
     setShowAnswer(true)
