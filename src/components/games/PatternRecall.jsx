@@ -2,7 +2,29 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
-import { updateGameSession, markGameCompleted } from '../../lib/storage'
+import { HelpButton } from '../ui/HelpButton'
+import { updateGameSession, markGameCompleted, getNextGamePath } from '../../lib/storage'
+import { playCorrectSound, playIncorrectSound, playCelebrationSound } from '../../lib/sounds'
+
+// Help instructions for this game
+const HELP_INSTRUCTIONS = [
+  {
+    en: "Watch the colors light up and listen to their names.",
+    vi: "Xem các màu sáng lên và nghe tên của chúng."
+  },
+  {
+    en: "After the sequence finishes, tap the colors in the same order.",
+    vi: "Sau khi chuỗi kết thúc, chạm vào các màu theo cùng thứ tự."
+  },
+  {
+    en: "Each level adds one more color to remember.",
+    vi: "Mỗi cấp độ thêm một màu nữa để nhớ."
+  },
+  {
+    en: "Don't worry if you make a mistake - just try again!",
+    vi: "Đừng lo nếu bạn nhầm - cứ thử lại!"
+  }
+]
 
 const COLORS = [
   { name: 'red', bg: 'bg-red-600', activeBg: 'bg-red-300', vi: 'đỏ' },
@@ -10,6 +32,30 @@ const COLORS = [
   { name: 'green', bg: 'bg-green-600', activeBg: 'bg-green-300', vi: 'xanh lá' },
   { name: 'yellow', bg: 'bg-yellow-500', activeBg: 'bg-yellow-200', vi: 'vàng' },
 ]
+
+// Speak a color name using text-to-speech
+function speakColor(colorIndex) {
+  if ('speechSynthesis' in window) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel()
+
+    const color = COLORS[colorIndex]
+    const utterance = new SpeechSynthesisUtterance(color.vi)
+
+    // Try to use Vietnamese voice if available, otherwise use default
+    const voices = window.speechSynthesis.getVoices()
+    const vietnameseVoice = voices.find(v => v.lang.startsWith('vi'))
+    if (vietnameseVoice) {
+      utterance.voice = vietnameseVoice
+    }
+
+    utterance.rate = 0.9 // Slightly slower for clarity
+    utterance.pitch = 1.1 // Slightly higher pitch for friendliness
+    utterance.volume = 1
+
+    window.speechSynthesis.speak(utterance)
+  }
+}
 
 export function PatternRecall() {
   const navigate = useNavigate()
@@ -42,6 +88,17 @@ export function PatternRecall() {
       }
     }
   }, [level, score, highestLevel, gameState, startTime])
+
+  // Handle game completion - play sound and auto-advance
+  useEffect(() => {
+    if (gameState === 'complete') {
+      playCelebrationSound()
+      const timer = setTimeout(() => {
+        navigate(getNextGamePath())
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [gameState, navigate])
 
   const generateSequence = useCallback((length) => {
     return Array.from({ length }, () => Math.floor(Math.random() * 4))
@@ -77,14 +134,18 @@ export function PatternRecall() {
 
     const showNext = () => {
       if (index < sequence.length) {
-        setActiveColor(sequence[index])
+        const colorIndex = sequence[index]
+        setActiveColor(colorIndex)
         setShowingIndex(index)
+
+        // Speak the color name
+        speakColor(colorIndex)
 
         setTimeout(() => {
           setActiveColor(null)
           index++
-          setTimeout(showNext, 300)
-        }, 800)
+          setTimeout(showNext, 400) // Slightly longer pause between colors
+        }, 900) // Slightly longer display to allow speech
       } else {
         setShowingIndex(-1)
         setGameState('input')
@@ -99,6 +160,7 @@ export function PatternRecall() {
     if (gameState !== 'input') return
 
     setActiveColor(colorIndex)
+    speakColor(colorIndex) // Speak the color when player clicks
     setTimeout(() => setActiveColor(null), 200)
 
     const newPlayerSequence = [...playerSequence, colorIndex]
@@ -109,6 +171,7 @@ export function PatternRecall() {
     // Check if correct
     if (sequence[currentIndex] !== colorIndex) {
       // Wrong!
+      playIncorrectSound()
       setHighestLevel(Math.max(highestLevel, level))
       if (level >= 5) {
         // Complete after reaching level 5
@@ -124,6 +187,7 @@ export function PatternRecall() {
 
     // Check if sequence complete
     if (newPlayerSequence.length === sequence.length) {
+      playCorrectSound()
       const levelScore = level * 10
       setScore(score + levelScore)
       setHighestLevel(Math.max(highestLevel, level))
@@ -144,28 +208,31 @@ export function PatternRecall() {
   if (gameState === 'ready') {
     return (
       <div className="max-w-2xl mx-auto space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-[#2c3e50] mb-2">
+        <div className="text-center animate-slide-up">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
             Pattern Recall
           </h1>
-          <p className="text-xl text-[#4a90a4]">
+          <p className="text-xl text-indigo-600">
             Nhớ mẫu
           </p>
         </div>
 
-        <Card className="space-y-6 text-center">
-          <p className="text-xl text-gray-600">
+        <Card className="space-y-6 text-center animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <p className="text-xl text-slate-600">
             Watch the color sequence, then repeat it!
           </p>
-          <p className="text-lg text-gray-500">
+          <p className="text-lg text-slate-500">
             Xem chuỗi màu sắc, sau đó lặp lại!
+          </p>
+          <p className="text-base text-indigo-500">
+            Listen to the colors being spoken aloud
           </p>
 
           <div className="flex justify-center gap-4 my-8">
             {COLORS.map((color, index) => (
               <div
                 key={color.name}
-                className={`w-16 h-16 rounded-xl ${color.bg}`}
+                className={`w-16 h-16 rounded-xl ${color.bg} shadow-lg`}
               />
             ))}
           </div>
@@ -177,7 +244,7 @@ export function PatternRecall() {
           </Button>
         </Card>
 
-        <div className="text-center">
+        <div className="text-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <Button variant="secondary" onClick={() => navigate('/')}>
             Back Home
           </Button>
@@ -189,22 +256,26 @@ export function PatternRecall() {
   if (gameState === 'complete') {
     return (
       <div className="max-w-2xl mx-auto space-y-8">
-        <Card className="text-center">
-          <h1 className="text-3xl font-bold text-[#2c3e50] mb-4">
-            Amazing! Tuyệt vời!
+        <Card className="text-center animate-slide-up">
+          <h1 className="text-3xl font-bold mb-4">
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Amazing!</span> Tuyệt vời!
           </h1>
 
-          <div className="text-6xl mb-6">🏆</div>
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </div>
 
-          <div className="bg-[#f5f7fa] rounded-xl p-6 mb-6 space-y-4">
-            <p className="text-2xl">
+          <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl p-6 mb-6 space-y-4 border border-slate-100">
+            <p className="text-2xl text-slate-700">
               You completed all 5 levels!
             </p>
-            <p className="text-xl text-gray-600">
-              Final Score: <span className="font-bold text-[#4a90a4]">{score}</span>
+            <p className="text-xl text-slate-600">
+              Final Score: <span className="font-bold text-indigo-600">{score}</span>
             </p>
-            <p className="text-xl text-gray-600">
-              Highest Level: <span className="font-bold text-[#5cb85c]">{highestLevel}</span>
+            <p className="text-xl text-slate-600">
+              Highest Level: <span className="font-bold text-emerald-500">{highestLevel}</span>
             </p>
           </div>
 
@@ -223,40 +294,47 @@ export function PatternRecall() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header with stats */}
+      <div className="flex justify-between items-center bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-slate-100">
         <div>
-          <h1 className="text-2xl font-bold text-[#2c3e50]">Pattern Recall</h1>
-          <p className="text-lg text-gray-500">Level {level} of 5</p>
+          <h1 className="text-2xl font-bold text-slate-800">Pattern Recall</h1>
+          <p className="text-slate-500">Level {level} of 5</p>
         </div>
-        <div className="text-right">
-          <p className="text-lg text-gray-600">Score: <span className="font-bold text-[#4a90a4]">{score}</span></p>
-          <p className="text-lg text-gray-600">Sequence: <span className="font-bold">{sequence.length} colors</span></p>
+        <div className="flex gap-6">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-indigo-600">{score}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wide">Score</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-purple-600">{sequence.length}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wide">Colors</p>
+          </div>
         </div>
       </div>
 
       <Card className="py-12">
         <div className="text-center mb-8">
           {gameState === 'showing' && (
-            <p className="text-2xl text-[#4a90a4] animate-pulse">
-              Watch carefully... Xem kỹ nhé...
+            <p className="text-2xl text-indigo-600 animate-pulse">
+              Watch and listen... Xem và nghe nhé...
             </p>
           )}
           {gameState === 'input' && (
-            <p className="text-2xl text-[#2c3e50]">
+            <p className="text-2xl text-slate-800">
               Your turn! Đến lượt bạn!
               <br />
-              <span className="text-lg text-gray-500">
+              <span className="text-lg text-slate-500">
                 {playerSequence.length} / {sequence.length}
               </span>
             </p>
           )}
           {gameState === 'success' && (
-            <p className="text-2xl text-[#5cb85c]">
-              Correct! Đúng rồi! 🎉
+            <p className="text-2xl text-emerald-500">
+              Correct! Đúng rồi!
             </p>
           )}
           {gameState === 'fail' && (
-            <p className="text-2xl text-[#d9534f]">
+            <p className="text-2xl text-red-500">
               Not quite! Chưa đúng!
             </p>
           )}
@@ -315,15 +393,22 @@ export function PatternRecall() {
         </div>
       )}
 
-      {/* Always show option to stop */}
+      {/* Done for today button */}
       <div className="text-center mt-8">
         <button
           onClick={() => navigate('/done')}
-          className="bg-gray-100 hover:bg-[#5cb85c]/20 text-gray-600 hover:text-[#5cb85c] px-6 py-3 rounded-xl text-lg transition-all border-2 border-gray-200 hover:border-[#5cb85c]"
+          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
         >
-          ✨ Done for today? / Xong rồi? ✨
+          Done for today? / Xong rồi?
         </button>
       </div>
+
+      {/* Floating help button - always visible */}
+      <HelpButton
+        gameTitle="Pattern Recall"
+        gameTitleVi="Nhớ mẫu"
+        instructions={HELP_INSTRUCTIONS}
+      />
     </div>
   )
 }

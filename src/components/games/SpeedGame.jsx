@@ -2,8 +2,30 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
-import { updateGameSession, markGameCompleted } from '../../lib/storage'
+import { HelpButton } from '../ui/HelpButton'
+import { updateGameSession, markGameCompleted, getNextGamePath } from '../../lib/storage'
+import { playCorrectSound, playIncorrectSound, playCelebrationSound } from '../../lib/sounds'
 import { getRandomCorrectMessage } from '../../data/encouragement'
+
+// Help instructions for this game
+const HELP_INSTRUCTIONS = [
+  {
+    en: "Find the Different: Look at the items and tap the one that's different from the others.",
+    vi: "Tìm cái khác: Nhìn các vật phẩm và chạm vào cái khác với những cái còn lại."
+  },
+  {
+    en: "Quick Tap: Tap the button as fast as you can when it appears!",
+    vi: "Chạm nhanh: Chạm vào nút nhanh nhất có thể khi nó xuất hiện!"
+  },
+  {
+    en: "Matching: Find and tap the two items that are the same.",
+    vi: "Ghép đôi: Tìm và chạm vào hai vật phẩm giống nhau."
+  },
+  {
+    en: "These games help keep your mind sharp and quick!",
+    vi: "Những trò chơi này giúp giữ tâm trí bạn nhanh nhạy!"
+  }
+]
 
 const SHAPES = ['🔴', '🔵', '🟢', '🟡', '🟣', '🟠']
 const ANIMALS = ['🐧', '🐱', '🐶', '🐰', '🐻', '🦊']
@@ -44,6 +66,17 @@ export function SpeedGame() {
       }
     }
   }, [round, score, mode, gameComplete, startTime])
+
+  // Handle game completion - play sound and auto-advance
+  useEffect(() => {
+    if (gameComplete) {
+      playCelebrationSound()
+      const timer = setTimeout(() => {
+        navigate(getNextGamePath())
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [gameComplete, navigate])
 
   // Find the Different Game
   const generateFindDifferent = useCallback(() => {
@@ -134,6 +167,7 @@ export function SpeedGame() {
     const responseTime = Date.now() - (reactionStart || startTime)
 
     if (isCorrect) {
+      playCorrectSound()
       setScore(score + 1)
       setTimes([...times, responseTime])
       setFeedback({ correct: true, message: getRandomCorrectMessage() })
@@ -146,6 +180,7 @@ export function SpeedGame() {
 
   const handleReactionClick = () => {
     if (gameData?.showTarget) {
+      playCorrectSound()
       const responseTime = Date.now() - reactionStart
       setTimes([...times, responseTime])
       setScore(score + 1)
@@ -166,6 +201,7 @@ export function SpeedGame() {
     const responseTime = Date.now() - (reactionStart || startTime)
 
     if (isCorrect) {
+      playCorrectSound()
       setScore(score + 1)
       setTimes([...times, responseTime])
       setFeedback({ correct: true, message: getRandomCorrectMessage() })
@@ -486,11 +522,18 @@ export function SpeedGame() {
       <div className="text-center mt-8">
         <button
           onClick={() => navigate('/done')}
-          className="bg-gray-100 hover:bg-[#5cb85c]/20 text-gray-600 hover:text-[#5cb85c] px-6 py-3 rounded-xl text-lg transition-all border-2 border-gray-200 hover:border-[#5cb85c]"
+          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
         >
-          ✨ Done for today? / Xong rồi? ✨
+          Done for today? / Xong rồi?
         </button>
       </div>
+
+      {/* Floating help button - always visible */}
+      <HelpButton
+        gameTitle="Speed Games"
+        gameTitleVi="Trò chơi nhanh"
+        instructions={HELP_INSTRUCTIONS}
+      />
     </div>
   )
 }

@@ -3,8 +3,33 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
+import { Confetti } from '../ui/Confetti'
+import { AnimatedNumber } from '../ui/AnimatedNumber'
+import { CircularProgress } from '../ui/CircularProgress'
+import { HelpButton } from '../ui/HelpButton'
 import { getRandomWords } from '../../data/vocabulary'
-import { updateGameSession, markGameCompleted } from '../../lib/storage'
+import { updateGameSession, markGameCompleted, getNextGamePath } from '../../lib/storage'
+import { playCorrectSound, playIncorrectSound, playCelebrationSound } from '../../lib/sounds'
+
+// Help instructions for this game
+const HELP_INSTRUCTIONS = [
+  {
+    en: "You'll see a word in one language - type the translation in the other language.",
+    vi: "Bạn sẽ thấy một từ bằng một ngôn ngữ - gõ bản dịch bằng ngôn ngữ kia."
+  },
+  {
+    en: "Don't worry about accents - we accept answers without them.",
+    vi: "Đừng lo về dấu - chúng tôi chấp nhận câu trả lời không có dấu."
+  },
+  {
+    en: "If you're not sure, just try your best guess! You can try again if wrong.",
+    vi: "Nếu không chắc, cứ thử đoán! Bạn có thể thử lại nếu sai."
+  },
+  {
+    en: "Press Skip if you want to see the answer and move on.",
+    vi: "Nhấn Bỏ qua nếu bạn muốn xem đáp án và tiếp tục."
+  }
+]
 
 // Remove Vietnamese diacritics for flexible matching
 function removeVietnameseDiacritics(str) {
@@ -21,9 +46,10 @@ export function TranslationGame() {
   const [words, setWords] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answer, setAnswer] = useState('')
-  const [feedback, setFeedback] = useState(null) // null, 'correct', 'incorrect'
+  const [feedback, setFeedback] = useState(null) // null, 'correct', 'incorrect', 'tryAgain'
   const [results, setResults] = useState([])
   const [showAnswer, setShowAnswer] = useState(false)
+  const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
   const sessionId = useRef(null)
   const inputRef = useRef(null)
@@ -52,6 +78,18 @@ export function TranslationGame() {
     }
   }, [results, mode, startTime])
 
+  // Handle game completion - play sound and auto-advance
+  const isGameComplete = words.length > 0 && currentIndex >= words.length
+  useEffect(() => {
+    if (isGameComplete) {
+      playCelebrationSound()
+      const timer = setTimeout(() => {
+        navigate(getNextGamePath())
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [isGameComplete, navigate])
+
   const startGame = (selectedMode) => {
     sessionId.current = Date.now()
     const randomWords = getRandomWords(WORD_COUNT)
@@ -67,6 +105,7 @@ export function TranslationGame() {
     setFeedback(null)
     setResults([])
     setShowAnswer(false)
+    setAttempts(0)
     setStartTime(Date.now())
   }
 
@@ -91,14 +130,34 @@ export function TranslationGame() {
                       userAnswer.includes(correctAnswer) ||
                       correctAnswerNormalized.includes(userAnswerNormalized) && userAnswerNormalized.length >= 3
 
-    setFeedback(isCorrect ? 'correct' : 'incorrect')
-    setShowAnswer(true)
-    setResults([...results, { word: currentWord, userAnswer, isCorrect }])
-
-    // Auto-advance after correct answer
     if (isCorrect) {
+      // Correct answer!
+      setFeedback('correct')
+      setShowAnswer(true)
+      setResults([...results, { word: currentWord, userAnswer, isCorrect: true }])
+      playCorrectSound()
       setTimeout(() => nextWord(), 400)
+    } else if (attempts === 0) {
+      // First wrong attempt - give another chance
+      setFeedback('tryAgain')
+      setAttempts(1)
+      setAnswer('')
+      playIncorrectSound()
+      // Re-focus input for retry
+      setTimeout(() => inputRef.current?.focus(), 50)
+    } else {
+      // Second wrong attempt - show answer
+      setFeedback('incorrect')
+      setShowAnswer(true)
+      setResults([...results, { word: currentWord, userAnswer, isCorrect: false }])
+      playIncorrectSound()
     }
+  }
+
+  const skipWord = () => {
+    // Allow skipping without penalty - just move on
+    setResults([...results, { word: currentWord, userAnswer: '(skipped)', isCorrect: false }])
+    nextWord()
   }
 
   const nextWord = () => {
@@ -107,6 +166,7 @@ export function TranslationGame() {
       setAnswer('')
       setFeedback(null)
       setShowAnswer(false)
+      setAttempts(0)
       // Re-focus input for next question
       setTimeout(() => inputRef.current?.focus(), 50)
     } else {
@@ -172,30 +232,45 @@ export function TranslationGame() {
   if (currentIndex >= words.length) {
     const correctCount = results.filter(r => r.isCorrect).length
     const accuracy = Math.round((correctCount / WORD_COUNT) * 100)
+    const nextGame = getNextGamePath()
 
     return (
       <div className="max-w-2xl mx-auto space-y-8">
-        <Card className="text-center">
-          <h1 className="text-3xl font-bold text-[#2c3e50] mb-4">
-            Well done! Làm tốt lắm!
-          </h1>
+        <Confetti />
 
-          <div className="text-6xl mb-6">
+        <Card className="text-center animate-slide-up" variant="gradient">
+          <h1 className="text-4xl font-bold mb-2">
+            <span className="gradient-text">Well done!</span>
+          </h1>
+          <p className="text-2xl text-[#4a90a4] mb-6">Làm tốt lắm!</p>
+
+          <div className="text-7xl mb-6 animate-bounce" style={{ animationDuration: '2s' }}>
             {accuracy >= 80 ? '🌟' : accuracy >= 60 ? '👍' : '💪'}
           </div>
 
-          <div className="bg-[#f5f7fa] rounded-xl p-6 mb-6 space-y-4">
-            <p className="text-2xl">
-              Score: <span className="font-bold text-[#4a90a4]">{correctCount}/{WORD_COUNT}</span>
-            </p>
-            <p className="text-xl text-gray-600">
-              Accuracy: <span className="font-bold text-[#5cb85c]">{accuracy}%</span>
-            </p>
+          {/* Stats row */}
+          <div className="flex justify-center gap-8 mb-8">
+            <div className="text-center">
+              <CircularProgress
+                value={accuracy}
+                size={100}
+                strokeWidth={8}
+                color={accuracy >= 80 ? '#5cb85c' : accuracy >= 60 ? '#f0ad4e' : '#4a90a4'}
+              />
+              <p className="text-sm text-gray-500 mt-2 uppercase tracking-wide">Accuracy</p>
+            </div>
+            <div className="text-center flex flex-col justify-center">
+              <p className="text-5xl font-bold text-[#4a90a4]">
+                <AnimatedNumber value={correctCount} duration={800} />
+                <span className="text-2xl text-gray-400">/{WORD_COUNT}</span>
+              </p>
+              <p className="text-sm text-gray-500 uppercase tracking-wide">Score</p>
+            </div>
           </div>
 
           {/* Show missed words */}
           {results.filter(r => !r.isCorrect).length > 0 && (
-            <div className="text-left bg-red-50 rounded-xl p-6 mb-6">
+            <div className="text-left bg-gradient-to-br from-red-50 to-orange-50 rounded-2xl p-6 mb-6 border border-red-100">
               <h3 className="text-xl font-semibold mb-4 text-[#d9534f]">
                 Words to review:
               </h3>
@@ -211,12 +286,14 @@ export function TranslationGame() {
             </div>
           )}
 
+          <p className="text-lg text-gray-500 mb-6 animate-pulse">Moving to next game...</p>
+
           <div className="flex gap-4 justify-center flex-wrap">
             <Button variant="secondary" onClick={() => setMode(null)}>
               Play Again
             </Button>
-            <Button onClick={() => navigate('/games/word-puzzle')}>
-              Next Exercise →
+            <Button onClick={() => navigate(nextGame)} glow>
+              Next Game →
             </Button>
           </div>
         </Card>
@@ -281,48 +358,76 @@ export function TranslationGame() {
 
         {feedback && (
           <div className={`text-center p-4 rounded-xl ${
-            feedback === 'correct' ? 'bg-green-100' : 'bg-red-100'
+            feedback === 'correct' ? 'bg-green-100' :
+            feedback === 'tryAgain' ? 'bg-yellow-100' : 'bg-red-100'
           }`}>
             {feedback === 'correct' ? (
               <p className="text-2xl text-[#5cb85c]">✓ Correct! Đúng rồi!</p>
+            ) : feedback === 'tryAgain' ? (
+              <div>
+                <p className="text-2xl text-[#f0ad4e] mb-2">Try again! Thử lại nhé!</p>
+                <p className="text-lg text-gray-600">
+                  Hint: The first letter is "<span className="font-bold">{correctAnswer[0].toUpperCase()}</span>"
+                </p>
+              </div>
             ) : (
               <div>
-                <p className="text-2xl text-[#d9534f] mb-2">Not quite!</p>
+                <p className="text-2xl text-[#d9534f] mb-2">Good try!</p>
                 <p className="text-xl">
                   The answer is: <span className="font-bold text-[#4a90a4]">{correctAnswer}</span>
                 </p>
+                <p className="text-lg text-gray-500 mt-1">Now you know! 👍</p>
               </div>
             )}
           </div>
         )}
 
-        {!showAnswer ? (
-          <Button
-            onClick={checkAnswer}
-            className="w-full"
-            disabled={!answer.trim()}
-          >
-            Check Answer
-          </Button>
-        ) : (
-          <Button
-            onClick={nextWord}
-            className="w-full"
-          >
-            {currentIndex < words.length - 1 ? 'Next Word →' : 'See Results'}
-          </Button>
-        )}
+        <div className="flex gap-3">
+          {!showAnswer && (
+            <Button
+              onClick={skipWord}
+              variant="secondary"
+              className="flex-1"
+            >
+              Skip / Bỏ qua
+            </Button>
+          )}
+
+          {!showAnswer ? (
+            <Button
+              onClick={checkAnswer}
+              className="flex-1"
+              disabled={!answer.trim()}
+            >
+              Check Answer
+            </Button>
+          ) : (
+            <Button
+              onClick={nextWord}
+              className="w-full"
+            >
+              {currentIndex < words.length - 1 ? 'Next Word →' : 'See Results'}
+            </Button>
+          )}
+        </div>
       </Card>
 
       {/* Always show option to stop */}
       <div className="text-center mt-8">
         <button
           onClick={() => navigate('/done')}
-          className="bg-gray-100 hover:bg-[#5cb85c]/20 text-gray-600 hover:text-[#5cb85c] px-6 py-3 rounded-xl text-lg transition-all border-2 border-gray-200 hover:border-[#5cb85c]"
+          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
         >
-          ✨ Done for today? / Xong rồi? ✨
+          Done for today? / Xong rồi?
         </button>
       </div>
+
+      {/* Floating help button - always visible */}
+      <HelpButton
+        gameTitle="Translation"
+        gameTitleVi="Luyện dịch"
+        instructions={HELP_INSTRUCTIONS}
+      />
     </div>
   )
 }

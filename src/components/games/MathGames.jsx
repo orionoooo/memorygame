@@ -3,7 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
-import { updateGameSession, markGameCompleted } from '../../lib/storage'
+import { HelpButton } from '../ui/HelpButton'
+import { updateGameSession, markGameCompleted, getNextGamePath } from '../../lib/storage'
+import { playCorrectSound, playIncorrectSound, playCelebrationSound } from '../../lib/sounds'
+
+// Help instructions for this game
+const HELP_INSTRUCTIONS = [
+  {
+    en: "Simple Math: Solve addition and subtraction problems.",
+    vi: "Toán đơn giản: Giải các bài toán cộng và trừ."
+  },
+  {
+    en: "Money Counting: Count the total value of coins and bills.",
+    vi: "Đếm tiền: Đếm tổng giá trị của tiền xu và tiền giấy."
+  },
+  {
+    en: "Number Patterns: Find the missing number in the sequence.",
+    vi: "Dãy số: Tìm số còn thiếu trong dãy."
+  },
+  {
+    en: "Type your answer and press Submit. Take your time!",
+    vi: "Gõ câu trả lời và nhấn Gửi. Từ từ thôi!"
+  }
+]
 
 export function MathGames() {
   const navigate = useNavigate()
@@ -11,9 +33,10 @@ export function MathGames() {
   const [problems, setProblems] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answer, setAnswer] = useState('')
-  const [feedback, setFeedback] = useState(null)
+  const [feedback, setFeedback] = useState(null) // null, 'correct', 'incorrect', 'tryAgain'
   const [results, setResults] = useState([])
   const [showAnswer, setShowAnswer] = useState(false)
+  const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
   const sessionId = useRef(null)
   const inputRef = useRef(null)
@@ -41,6 +64,18 @@ export function MathGames() {
       }
     }
   }, [results, mode, startTime])
+
+  // Handle game completion - play sound and auto-advance
+  const isGameComplete = problems.length > 0 && currentIndex >= problems.length
+  useEffect(() => {
+    if (isGameComplete) {
+      playCelebrationSound()
+      const timer = setTimeout(() => {
+        navigate(getNextGamePath())
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [isGameComplete, navigate])
 
   // Generate arithmetic problems
   const generateArithmetic = () => {
@@ -144,6 +179,7 @@ export function MathGames() {
     setFeedback(null)
     setResults([])
     setShowAnswer(false)
+    setAttempts(0)
     setStartTime(Date.now())
   }
 
@@ -155,14 +191,34 @@ export function MathGames() {
     const userAnswer = parseInt(answer)
     const isCorrect = userAnswer === currentProblem.answer
 
-    setFeedback(isCorrect ? 'correct' : 'incorrect')
-    setShowAnswer(true)
-    setResults([...results, { problem: currentProblem, userAnswer, isCorrect }])
-
-    // Auto-advance after correct answer
     if (isCorrect) {
+      // Correct answer!
+      setFeedback('correct')
+      setShowAnswer(true)
+      setResults([...results, { problem: currentProblem, userAnswer, isCorrect: true }])
+      playCorrectSound()
       setTimeout(() => nextProblem(), 400)
+    } else if (attempts === 0) {
+      // First wrong attempt - give another chance
+      setFeedback('tryAgain')
+      setAttempts(1)
+      setAnswer('')
+      playIncorrectSound()
+      // Re-focus input for retry
+      setTimeout(() => inputRef.current?.focus(), 50)
+    } else {
+      // Second wrong attempt - show answer
+      setFeedback('incorrect')
+      setShowAnswer(true)
+      setResults([...results, { problem: currentProblem, userAnswer, isCorrect: false }])
+      playIncorrectSound()
     }
+  }
+
+  const skipProblem = () => {
+    // Allow skipping without penalty - just move on
+    setResults([...results, { problem: currentProblem, userAnswer: null, isCorrect: false }])
+    nextProblem()
   }
 
   const nextProblem = () => {
@@ -171,6 +227,7 @@ export function MathGames() {
       setAnswer('')
       setFeedback(null)
       setShowAnswer(false)
+      setAttempts(0)
       // Re-focus input for next question
       setTimeout(() => inputRef.current?.focus(), 50)
     } else {
@@ -365,41 +422,62 @@ export function MathGames() {
         {/* Feedback */}
         {feedback && (
           <div className={`text-center p-4 rounded-xl ${
-            feedback === 'correct' ? 'bg-green-100' : 'bg-red-100'
+            feedback === 'correct' ? 'bg-green-100' :
+            feedback === 'tryAgain' ? 'bg-yellow-100' : 'bg-red-100'
           }`}>
             {feedback === 'correct' ? (
               <p className="text-2xl text-[#5cb85c]">✓ Correct! Đúng rồi!</p>
+            ) : feedback === 'tryAgain' ? (
+              <div>
+                <p className="text-2xl text-[#f0ad4e] mb-2">Try again! Thử lại nhé!</p>
+                {currentProblem.hint && (
+                  <p className="text-lg text-gray-600">Hint: {currentProblem.hint}</p>
+                )}
+              </div>
             ) : (
               <div>
-                <p className="text-2xl text-[#d9534f] mb-2">Not quite!</p>
+                <p className="text-2xl text-[#d9534f] mb-2">Good try!</p>
                 <p className="text-xl">
                   The answer is: <span className="font-bold text-[#4a90a4]">{currentProblem.answer}</span>
                 </p>
                 {currentProblem.hint && (
                   <p className="text-lg text-gray-500 mt-2">({currentProblem.hint})</p>
                 )}
+                <p className="text-lg text-gray-500 mt-1">Now you know! 👍</p>
               </div>
             )}
           </div>
         )}
 
         {/* Action buttons */}
-        {!showAnswer ? (
-          <Button
-            onClick={checkAnswer}
-            className="w-full"
-            disabled={!answer.trim()}
-          >
-            Check Answer
-          </Button>
-        ) : (
-          <Button
-            onClick={nextProblem}
-            className="w-full"
-          >
-            {currentIndex < problems.length - 1 ? 'Next Problem →' : 'See Results'}
-          </Button>
-        )}
+        <div className="flex gap-3">
+          {!showAnswer && (
+            <Button
+              onClick={skipProblem}
+              variant="secondary"
+              className="flex-1"
+            >
+              Skip / Bỏ qua
+            </Button>
+          )}
+
+          {!showAnswer ? (
+            <Button
+              onClick={checkAnswer}
+              className="flex-1"
+              disabled={!answer.trim()}
+            >
+              Check Answer
+            </Button>
+          ) : (
+            <Button
+              onClick={nextProblem}
+              className="w-full"
+            >
+              {currentIndex < problems.length - 1 ? 'Next Problem →' : 'See Results'}
+            </Button>
+          )}
+        </div>
       </Card>
 
       {/* Hint for sequence mode */}
@@ -414,11 +492,18 @@ export function MathGames() {
       <div className="text-center mt-8">
         <button
           onClick={() => navigate('/done')}
-          className="bg-gray-100 hover:bg-[#5cb85c]/20 text-gray-600 hover:text-[#5cb85c] px-6 py-3 rounded-xl text-lg transition-all border-2 border-gray-200 hover:border-[#5cb85c]"
+          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
         >
-          ✨ Done for today? / Xong rồi? ✨
+          Done for today? / Xong rồi?
         </button>
       </div>
+
+      {/* Floating help button - always visible */}
+      <HelpButton
+        gameTitle="Math Games"
+        gameTitleVi="Trò chơi toán học"
+        instructions={HELP_INSTRUCTIONS}
+      />
     </div>
   )
 }

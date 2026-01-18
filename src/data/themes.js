@@ -92,3 +92,34 @@ export function getRandomPenguinMessage() {
 
 // Animated penguin positions for decoration
 export const penguinDecorations = ['🐧', '🐧', '🐧']
+
+// Time-based greetings for Mom
+export function getTimeBasedGreeting() {
+  const hour = new Date().getHours()
+
+  if (hour >= 5 && hour < 12) {
+    return {
+      en: "Good morning, Mom!",
+      vi: "Chào buổi sáng, Mẹ!",
+      emoji: "☀️"
+    }
+  } else if (hour >= 12 && hour < 17) {
+    return {
+      en: "Good afternoon, Mom!",
+      vi: "Chào buổi chiều, Mẹ!",
+      emoji: "🌤️"
+    }
+  } else if (hour >= 17 && hour < 21) {
+    return {
+      en: "Good evening, Mom!",
+      vi: "Chào buổi tối, Mẹ!",
+      emoji: "🌅"
+    }
+  } else {
+    return {
+      en: "Hello, Mom!",
+      vi: "Xin chào, Mẹ!",
+      emoji: "🌙"
+    }
+  }
+}

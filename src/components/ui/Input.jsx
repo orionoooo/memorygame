@@ -11,9 +11,18 @@ export const Input = forwardRef(function Input({
   disabled = false,
   className = '',
   autoFocus = false,
-  onKeyDown
+  onKeyDown,
+  icon,
 }, ref) {
-  const baseStyles = 'w-full rounded-xl border-2 transition-all duration-200 focus:border-[#4a90a4] focus:ring-4 focus:ring-[#4a90a4]/20 disabled:bg-gray-100 disabled:cursor-not-allowed'
+  const baseStyles = `
+    w-full rounded-2xl border-2
+    bg-white/80 backdrop-blur-sm
+    transition-all duration-200
+    focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20
+    focus:bg-white focus:shadow-lg focus:shadow-indigo-500/10
+    disabled:bg-slate-100 disabled:cursor-not-allowed
+    placeholder:text-slate-400
+  `
 
   const sizes = {
     medium: 'px-4 py-3 text-xl',
@@ -22,29 +31,38 @@ export const Input = forwardRef(function Input({
   }
 
   const borderStyles = error
-    ? 'border-[#d9534f] focus:border-[#d9534f] focus:ring-[#d9534f]/20'
-    : 'border-gray-300'
+    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+    : 'border-slate-200 hover:border-slate-300'
 
   return (
     <div className={`w-full ${className}`}>
       {label && (
-        <label className="block text-xl font-medium text-[#2c3e50] mb-2">
+        <label className="block text-xl font-medium text-slate-800 mb-2">
           {label}
         </label>
       )}
-      <input
-        ref={ref}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        autoFocus={autoFocus}
-        onKeyDown={onKeyDown}
-        className={`${baseStyles} ${sizes[size]} ${borderStyles}`}
-      />
+      <div className="relative">
+        {icon && (
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-2xl">
+            {icon}
+          </div>
+        )}
+        <input
+          ref={ref}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          onKeyDown={onKeyDown}
+          className={`${baseStyles} ${sizes[size]} ${borderStyles} ${icon ? 'pl-14' : ''}`}
+        />
+      </div>
       {error && (
-        <p className="mt-2 text-lg text-[#d9534f]">{error}</p>
+        <p className="mt-2 text-lg text-red-500 flex items-center gap-2">
+          <span>⚠️</span> {error}
+        </p>
       )}
     </div>
   )

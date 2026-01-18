@@ -2,8 +2,30 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
+import { HelpButton } from '../ui/HelpButton'
 import { getRandomWords } from '../../data/vocabulary'
-import { updateGameSession, markGameCompleted } from '../../lib/storage'
+import { updateGameSession, markGameCompleted, getNextGamePath } from '../../lib/storage'
+import { playCorrectSound, playCelebrationSound } from '../../lib/sounds'
+
+// Help instructions for this game
+const HELP_INSTRUCTIONS = [
+  {
+    en: "Look at the letter or word shown on screen.",
+    vi: "Nhìn vào chữ cái hoặc từ hiển thị trên màn hình."
+  },
+  {
+    en: "Find that key on your keyboard and press it.",
+    vi: "Tìm phím đó trên bàn phím và nhấn nó."
+  },
+  {
+    en: "For words, type each letter one by one.",
+    vi: "Đối với từ, gõ từng chữ cái một."
+  },
+  {
+    en: "Don't rush - accuracy is more important than speed!",
+    vi: "Đừng vội - chính xác quan trọng hơn tốc độ!"
+  }
+]
 
 export function TypingPractice() {
   const navigate = useNavigate()
@@ -42,6 +64,18 @@ export function TypingPractice() {
       }
     }
   }, [results, mode, keyStrokes, startTime])
+
+  // Handle game completion - play sound and auto-advance
+  const isGameComplete = items.length > 0 && currentIndex >= items.length
+  useEffect(() => {
+    if (isGameComplete) {
+      playCelebrationSound()
+      const timer = setTimeout(() => {
+        navigate(getNextGamePath())
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [isGameComplete, navigate])
 
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -109,6 +143,7 @@ export function TypingPractice() {
     // Check if complete (case-insensitive)
     if (value.toLowerCase() === currentItem?.text.toLowerCase()) {
       // Correct!
+      playCorrectSound()
       setResults([...results, { item: currentItem, correct: true, typed: value }])
       setShowResult(true)
       // Auto-advance after correct answer
@@ -363,11 +398,18 @@ export function TypingPractice() {
       <div className="text-center mt-8">
         <button
           onClick={() => navigate('/done')}
-          className="bg-gray-100 hover:bg-[#5cb85c]/20 text-gray-600 hover:text-[#5cb85c] px-6 py-3 rounded-xl text-lg transition-all border-2 border-gray-200 hover:border-[#5cb85c]"
+          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
         >
-          ✨ Done for today? / Xong rồi? ✨
+          Done for today? / Xong rồi?
         </button>
       </div>
+
+      {/* Floating help button - always visible */}
+      <HelpButton
+        gameTitle="Typing Practice"
+        gameTitleVi="Luyện đánh máy"
+        instructions={HELP_INSTRUCTIONS}
+      />
     </div>
   )
 }

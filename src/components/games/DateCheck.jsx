@@ -3,9 +3,31 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
+import { HelpButton } from '../ui/HelpButton'
 import { daysOfWeek, months } from '../../data/vocabulary'
-import { updateGameSession, markGameCompleted } from '../../lib/storage'
+import { updateGameSession, markGameCompleted, getNextGamePath } from '../../lib/storage'
+import { playCorrectSound, playCelebrationSound } from '../../lib/sounds'
 import { getRandomCorrectMessage, getRandomEmoji } from '../../data/encouragement'
+
+// Help instructions for this game
+const HELP_INSTRUCTIONS = [
+  {
+    en: "This exercise helps you remember today's date.",
+    vi: "Bài tập này giúp bạn nhớ ngày hôm nay."
+  },
+  {
+    en: "First, tell us what day of the week it is (like Monday, Tuesday...).",
+    vi: "Đầu tiên, cho chúng tôi biết hôm nay là thứ mấy."
+  },
+  {
+    en: "Then, tell us the date number, month, and year.",
+    vi: "Sau đó, cho chúng tôi biết ngày, tháng và năm."
+  },
+  {
+    en: "Don't worry if you're not sure - just try your best!",
+    vi: "Đừng lo nếu không chắc - cứ cố gắng hết sức!"
+  }
+]
 
 export function DateCheck() {
   const navigate = useNavigate()
@@ -24,6 +46,8 @@ export function DateCheck() {
     year: null
   })
   const [lastMessage, setLastMessage] = useState(null)
+  const [attempts, setAttempts] = useState(0)
+  const [showTryAgain, setShowTryAgain] = useState(false)
   const sessionId = useRef(Date.now())
   const startTime = useRef(Date.now())
 
@@ -49,6 +73,17 @@ export function DateCheck() {
     }
   }, [results, step])
 
+  // Handle game completion - play sound and auto-advance
+  useEffect(() => {
+    if (step === 'complete') {
+      playCelebrationSound()
+      const timer = setTimeout(() => {
+        navigate(getNextGamePath())
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [step, navigate])
+
   const correctAnswers = {
     day: today.getDay(),
     date: today.getDate(),
@@ -64,18 +99,50 @@ export function DateCheck() {
     const isCorrect = userAnswer === correctDayVi || userAnswer === correctDayEn ||
                       correctDayVi.includes(userAnswer) || correctDayEn.includes(userAnswer)
 
-    if (isCorrect) setLastMessage(getRandomCorrectMessage())
-    setResults(prev => ({ ...prev, day: isCorrect }))
-    setStep('date')
+    if (isCorrect) {
+      playCorrectSound()
+      setLastMessage(getRandomCorrectMessage())
+      setResults(prev => ({ ...prev, day: true }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('date')
+    } else if (attempts === 0) {
+      // First wrong attempt - give another chance
+      setAttempts(1)
+      setShowTryAgain(true)
+      setAnswers(prev => ({ ...prev, day: '' }))
+    } else {
+      // Second wrong attempt - move on
+      setResults(prev => ({ ...prev, day: false }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('date')
+    }
   }
 
   const handleSubmitDate = () => {
     const userAnswer = parseInt(answers.date)
     const isCorrect = userAnswer === correctAnswers.date
 
-    if (isCorrect) setLastMessage(getRandomCorrectMessage())
-    setResults(prev => ({ ...prev, date: isCorrect }))
-    setStep('month')
+    if (isCorrect) {
+      playCorrectSound()
+      setLastMessage(getRandomCorrectMessage())
+      setResults(prev => ({ ...prev, date: true }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('month')
+    } else if (attempts === 0) {
+      // First wrong attempt - give another chance
+      setAttempts(1)
+      setShowTryAgain(true)
+      setAnswers(prev => ({ ...prev, date: '' }))
+    } else {
+      // Second wrong attempt - move on
+      setResults(prev => ({ ...prev, date: false }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('month')
+    }
   }
 
   const handleSubmitMonth = () => {
@@ -90,17 +157,49 @@ export function DateCheck() {
                       correctMonthVi.includes(userAnswer) ||
                       correctMonthEn.includes(userAnswer)
 
-    if (isCorrect) setLastMessage(getRandomCorrectMessage())
-    setResults(prev => ({ ...prev, month: isCorrect }))
-    setStep('year')
+    if (isCorrect) {
+      playCorrectSound()
+      setLastMessage(getRandomCorrectMessage())
+      setResults(prev => ({ ...prev, month: true }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('year')
+    } else if (attempts === 0) {
+      // First wrong attempt - give another chance
+      setAttempts(1)
+      setShowTryAgain(true)
+      setAnswers(prev => ({ ...prev, month: '' }))
+    } else {
+      // Second wrong attempt - move on
+      setResults(prev => ({ ...prev, month: false }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('year')
+    }
   }
 
   const handleSubmitYear = () => {
     const userAnswer = parseInt(answers.year)
     const isCorrect = userAnswer === correctAnswers.year
 
-    setResults(prev => ({ ...prev, year: isCorrect }))
-    setStep('complete')
+    if (isCorrect) {
+      playCorrectSound()
+      setResults(prev => ({ ...prev, year: true }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('complete')
+    } else if (attempts === 0) {
+      // First wrong attempt - give another chance
+      setAttempts(1)
+      setShowTryAgain(true)
+      setAnswers(prev => ({ ...prev, year: '' }))
+    } else {
+      // Second wrong attempt - move on
+      setResults(prev => ({ ...prev, year: false }))
+      setAttempts(0)
+      setShowTryAgain(false)
+      setStep('complete')
+    }
     // Results are automatically saved by the useEffect
   }
 
@@ -191,6 +290,12 @@ export function DateCheck() {
             <p className="text-xl text-center text-gray-500">
               Hôm nay là thứ mấy?
             </p>
+            {showTryAgain && (
+              <div className="text-center p-4 rounded-xl bg-yellow-100">
+                <p className="text-2xl text-[#f0ad4e] mb-2">Try again! Thử lại nhé!</p>
+                <p className="text-lg text-gray-600">Hint: It starts with "{daysOfWeek[correctAnswers.day].en[0]}"</p>
+              </div>
+            )}
             <Input
               value={answers.day}
               onChange={(value) => setAnswers(prev => ({ ...prev, day: value }))}
@@ -199,13 +304,27 @@ export function DateCheck() {
               autoFocus
               onKeyDown={(e) => handleKeyPress(e, handleSubmitDay)}
             />
-            <Button
-              onClick={handleSubmitDay}
-              className="w-full"
-              disabled={!answers.day.trim()}
-            >
-              Check Answer
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setResults(prev => ({ ...prev, day: false }))
+                  setAttempts(0)
+                  setShowTryAgain(false)
+                  setStep('date')
+                }}
+                variant="secondary"
+                className="flex-1"
+              >
+                Skip / Bỏ qua
+              </Button>
+              <Button
+                onClick={handleSubmitDay}
+                className="flex-1"
+                disabled={!answers.day.trim()}
+              >
+                Check Answer
+              </Button>
+            </div>
           </>
         )}
 
@@ -214,7 +333,7 @@ export function DateCheck() {
             <div className="text-center mb-4">
               {results.day ? (
                 <p className="text-xl text-[#5cb85c]">✓ {lastMessage?.en} {lastMessage?.vi}</p>
-              ) : (
+              ) : results.day === false ? (
                 <div className="bg-blue-50 rounded-xl p-4">
                   <p className="text-lg text-[#4a90a4]">
                     Good try! The day is {daysOfWeek[correctAnswers.day].en}
@@ -223,7 +342,7 @@ export function DateCheck() {
                     ({daysOfWeek[correctAnswers.day].vi}) - Now you know! 👍
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
             <h2 className="text-2xl font-semibold text-center text-[#2c3e50]">
               What is today's date (number)?
@@ -231,6 +350,12 @@ export function DateCheck() {
             <p className="text-xl text-center text-gray-500">
               Hôm nay là ngày bao nhiêu?
             </p>
+            {showTryAgain && (
+              <div className="text-center p-4 rounded-xl bg-yellow-100">
+                <p className="text-2xl text-[#f0ad4e] mb-2">Try again! Thử lại nhé!</p>
+                <p className="text-lg text-gray-600">Hint: It's between 1 and 31</p>
+              </div>
+            )}
             <Input
               type="number"
               value={answers.date}
@@ -240,13 +365,27 @@ export function DateCheck() {
               autoFocus
               onKeyDown={(e) => handleKeyPress(e, handleSubmitDate)}
             />
-            <Button
-              onClick={handleSubmitDate}
-              className="w-full"
-              disabled={!answers.date}
-            >
-              Check Answer
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setResults(prev => ({ ...prev, date: false }))
+                  setAttempts(0)
+                  setShowTryAgain(false)
+                  setStep('month')
+                }}
+                variant="secondary"
+                className="flex-1"
+              >
+                Skip / Bỏ qua
+              </Button>
+              <Button
+                onClick={handleSubmitDate}
+                className="flex-1"
+                disabled={!answers.date}
+              >
+                Check Answer
+              </Button>
+            </div>
           </>
         )}
 
@@ -255,14 +394,14 @@ export function DateCheck() {
             <div className="text-center mb-4">
               {results.date ? (
                 <p className="text-xl text-[#5cb85c]">✓ {lastMessage?.en} {lastMessage?.vi}</p>
-              ) : (
+              ) : results.date === false ? (
                 <div className="bg-blue-50 rounded-xl p-4">
                   <p className="text-lg text-[#4a90a4]">
                     Good try! The date is {correctAnswers.date}
                   </p>
                   <p className="text-md text-gray-500">Now you know! 👍</p>
                 </div>
-              )}
+              ) : null}
             </div>
             <h2 className="text-2xl font-semibold text-center text-[#2c3e50]">
               What month is it?
@@ -270,6 +409,12 @@ export function DateCheck() {
             <p className="text-xl text-center text-gray-500">
               Bây giờ là tháng mấy?
             </p>
+            {showTryAgain && (
+              <div className="text-center p-4 rounded-xl bg-yellow-100">
+                <p className="text-2xl text-[#f0ad4e] mb-2">Try again! Thử lại nhé!</p>
+                <p className="text-lg text-gray-600">Hint: It starts with "{months[correctAnswers.month].en[0]}"</p>
+              </div>
+            )}
             <Input
               value={answers.month}
               onChange={(value) => setAnswers(prev => ({ ...prev, month: value }))}
@@ -278,13 +423,27 @@ export function DateCheck() {
               autoFocus
               onKeyDown={(e) => handleKeyPress(e, handleSubmitMonth)}
             />
-            <Button
-              onClick={handleSubmitMonth}
-              className="w-full"
-              disabled={!answers.month.trim()}
-            >
-              Check Answer
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setResults(prev => ({ ...prev, month: false }))
+                  setAttempts(0)
+                  setShowTryAgain(false)
+                  setStep('year')
+                }}
+                variant="secondary"
+                className="flex-1"
+              >
+                Skip / Bỏ qua
+              </Button>
+              <Button
+                onClick={handleSubmitMonth}
+                className="flex-1"
+                disabled={!answers.month.trim()}
+              >
+                Check Answer
+              </Button>
+            </div>
           </>
         )}
 
@@ -293,7 +452,7 @@ export function DateCheck() {
             <div className="text-center mb-4">
               {results.month ? (
                 <p className="text-xl text-[#5cb85c]">✓ {lastMessage?.en} {lastMessage?.vi}</p>
-              ) : (
+              ) : results.month === false ? (
                 <div className="bg-blue-50 rounded-xl p-4">
                   <p className="text-lg text-[#4a90a4]">
                     Good try! The month is {months[correctAnswers.month].en}
@@ -302,7 +461,7 @@ export function DateCheck() {
                     ({months[correctAnswers.month].vi}) - Now you know! 👍
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
             <h2 className="text-2xl font-semibold text-center text-[#2c3e50]">
               What year is it?
@@ -310,6 +469,12 @@ export function DateCheck() {
             <p className="text-xl text-center text-gray-500">
               Năm nay là năm mấy?
             </p>
+            {showTryAgain && (
+              <div className="text-center p-4 rounded-xl bg-yellow-100">
+                <p className="text-2xl text-[#f0ad4e] mb-2">Try again! Thử lại nhé!</p>
+                <p className="text-lg text-gray-600">Hint: It starts with "20"</p>
+              </div>
+            )}
             <Input
               type="number"
               value={answers.year}
@@ -319,13 +484,27 @@ export function DateCheck() {
               autoFocus
               onKeyDown={(e) => handleKeyPress(e, handleSubmitYear)}
             />
-            <Button
-              onClick={handleSubmitYear}
-              className="w-full"
-              disabled={!answers.year}
-            >
-              Check Answer
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setResults(prev => ({ ...prev, year: false }))
+                  setAttempts(0)
+                  setShowTryAgain(false)
+                  setStep('complete')
+                }}
+                variant="secondary"
+                className="flex-1"
+              >
+                Skip / Bỏ qua
+              </Button>
+              <Button
+                onClick={handleSubmitYear}
+                className="flex-1"
+                disabled={!answers.year}
+              >
+                Check Answer
+              </Button>
+            </div>
           </>
         )}
       </Card>
@@ -334,11 +513,18 @@ export function DateCheck() {
       <div className="text-center mt-8">
         <button
           onClick={() => navigate('/done')}
-          className="bg-gray-100 hover:bg-[#5cb85c]/20 text-gray-600 hover:text-[#5cb85c] px-6 py-3 rounded-xl text-lg transition-all border-2 border-gray-200 hover:border-[#5cb85c]"
+          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
         >
-          ✨ Done for today? / Xong rồi? ✨
+          Done for today? / Xong rồi?
         </button>
       </div>
+
+      {/* Floating help button - always visible */}
+      <HelpButton
+        gameTitle="What Day Is It?"
+        gameTitleVi="Hôm nay là ngày mấy?"
+        instructions={HELP_INSTRUCTIONS}
+      />
     </div>
   )
 }
