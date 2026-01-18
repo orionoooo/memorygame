@@ -106,6 +106,11 @@ export function WordPuzzle() {
     setFeedback(isCorrect ? 'correct' : 'incorrect')
     setShowAnswer(true)
     setResults([...results, { word: currentWord, userAnswer, isCorrect, usedHint: hint }])
+
+    // Auto-advance after correct answer
+    if (isCorrect) {
+      setTimeout(() => nextWord(), 1500)
+    }
   }
 
   const nextWord = () => {
@@ -115,6 +120,9 @@ export function WordPuzzle() {
       setFeedback(null)
       setShowAnswer(false)
       setHint(false)
+    } else {
+      // Game complete - trigger completion screen
+      setCurrentIndex(words.length)
     }
   }
 

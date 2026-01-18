@@ -135,6 +135,8 @@ export function PatternRecall() {
         // Results are automatically saved by useEffect
       } else {
         setGameState('success')
+        // Auto-advance to next level after correct sequence
+        setTimeout(() => nextLevel(), 1500)
       }
     }
   }

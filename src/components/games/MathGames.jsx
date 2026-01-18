@@ -157,6 +157,11 @@ export function MathGames() {
     setFeedback(isCorrect ? 'correct' : 'incorrect')
     setShowAnswer(true)
     setResults([...results, { problem: currentProblem, userAnswer, isCorrect }])
+
+    // Auto-advance after correct answer
+    if (isCorrect) {
+      setTimeout(() => nextProblem(), 1500)
+    }
   }
 
   const nextProblem = () => {

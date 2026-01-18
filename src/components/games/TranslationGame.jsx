@@ -93,6 +93,11 @@ export function TranslationGame() {
     setFeedback(isCorrect ? 'correct' : 'incorrect')
     setShowAnswer(true)
     setResults([...results, { word: currentWord, userAnswer, isCorrect }])
+
+    // Auto-advance after correct answer
+    if (isCorrect) {
+      setTimeout(() => nextWord(), 1500)
+    }
   }
 
   const nextWord = () => {
@@ -102,7 +107,8 @@ export function TranslationGame() {
       setFeedback(null)
       setShowAnswer(false)
     } else {
-      // Game complete - results are automatically saved by useEffect
+      // Game complete - trigger completion screen
+      setCurrentIndex(words.length)
     }
   }
 
