@@ -112,7 +112,7 @@ export function TypingPractice() {
       setResults([...results, { item: currentItem, correct: true, typed: value }])
       setShowResult(true)
       // Auto-advance after correct answer
-      setTimeout(() => nextItem(), 1500)
+      setTimeout(() => nextItem(), 400)
     }
   }
 

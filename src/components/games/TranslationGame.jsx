@@ -26,6 +26,7 @@ export function TranslationGame() {
   const [showAnswer, setShowAnswer] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const sessionId = useRef(null)
+  const inputRef = useRef(null)
 
   const WORD_COUNT = 10
 
@@ -96,7 +97,7 @@ export function TranslationGame() {
 
     // Auto-advance after correct answer
     if (isCorrect) {
-      setTimeout(() => nextWord(), 1500)
+      setTimeout(() => nextWord(), 400)
     }
   }
 
@@ -106,6 +107,8 @@ export function TranslationGame() {
       setAnswer('')
       setFeedback(null)
       setShowAnswer(false)
+      // Re-focus input for next question
+      setTimeout(() => inputRef.current?.focus(), 50)
     } else {
       // Game complete - trigger completion screen
       setCurrentIndex(words.length)
@@ -265,6 +268,7 @@ export function TranslationGame() {
             Type the {answerLabel} translation:
           </p>
           <Input
+            ref={inputRef}
             value={answer}
             onChange={setAnswer}
             placeholder={`Type ${answerLabel} here...`}

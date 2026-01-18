@@ -1,4 +1,6 @@
-export function Input({
+import { forwardRef } from 'react'
+
+export const Input = forwardRef(function Input({
   value,
   onChange,
   placeholder = '',
@@ -10,7 +12,7 @@ export function Input({
   className = '',
   autoFocus = false,
   onKeyDown
-}) {
+}, ref) {
   const baseStyles = 'w-full rounded-xl border-2 transition-all duration-200 focus:border-[#4a90a4] focus:ring-4 focus:ring-[#4a90a4]/20 disabled:bg-gray-100 disabled:cursor-not-allowed'
 
   const sizes = {
@@ -31,6 +33,7 @@ export function Input({
         </label>
       )}
       <input
+        ref={ref}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -45,4 +48,4 @@ export function Input({
       )}
     </div>
   )
-}
+})

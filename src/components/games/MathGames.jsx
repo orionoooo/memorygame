@@ -16,6 +16,7 @@ export function MathGames() {
   const [showAnswer, setShowAnswer] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const sessionId = useRef(null)
+  const inputRef = useRef(null)
 
   const PROBLEM_COUNT = 10
 
@@ -160,7 +161,7 @@ export function MathGames() {
 
     // Auto-advance after correct answer
     if (isCorrect) {
-      setTimeout(() => nextProblem(), 1500)
+      setTimeout(() => nextProblem(), 400)
     }
   }
 
@@ -170,6 +171,8 @@ export function MathGames() {
       setAnswer('')
       setFeedback(null)
       setShowAnswer(false)
+      // Re-focus input for next question
+      setTimeout(() => inputRef.current?.focus(), 50)
     } else {
       // Game complete - results are automatically saved by useEffect
       setCurrentIndex(problems.length)
@@ -343,6 +346,7 @@ export function MathGames() {
         {/* Answer input */}
         <div className="max-w-xs mx-auto">
           <Input
+            ref={inputRef}
             type="number"
             value={answer}
             onChange={setAnswer}

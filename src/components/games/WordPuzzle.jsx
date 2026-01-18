@@ -18,6 +18,7 @@ export function WordPuzzle() {
   const [hint, setHint] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const sessionId = useRef(null)
+  const inputRef = useRef(null)
 
   const WORD_COUNT = 8
 
@@ -109,7 +110,7 @@ export function WordPuzzle() {
 
     // Auto-advance after correct answer
     if (isCorrect) {
-      setTimeout(() => nextWord(), 1500)
+      setTimeout(() => nextWord(), 400)
     }
   }
 
@@ -120,6 +121,8 @@ export function WordPuzzle() {
       setFeedback(null)
       setShowAnswer(false)
       setHint(false)
+      // Re-focus input for next question
+      setTimeout(() => inputRef.current?.focus(), 50)
     } else {
       // Game complete - trigger completion screen
       setCurrentIndex(words.length)
@@ -300,6 +303,7 @@ export function WordPuzzle() {
 
         <div className="space-y-4">
           <Input
+            ref={inputRef}
             value={answer}
             onChange={setAnswer}
             placeholder="Type your answer..."

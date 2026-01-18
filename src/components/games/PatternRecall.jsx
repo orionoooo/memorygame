@@ -136,7 +136,7 @@ export function PatternRecall() {
       } else {
         setGameState('success')
         // Auto-advance to next level after correct sequence
-        setTimeout(() => nextLevel(), 1500)
+        setTimeout(() => nextLevel(), 400)
       }
     }
   }
