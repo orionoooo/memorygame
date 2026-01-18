@@ -131,16 +131,16 @@ export function GameTile({
 
         {/* Text */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-xl font-bold tracking-tight truncate">
+          <h3 className="text-xl font-bold tracking-tight">
             {title}
           </h3>
           {titleVi && (
-            <p className="text-base text-white/80 truncate font-medium">
+            <p className="text-base text-white/80 font-medium">
               {titleVi}
             </p>
           )}
           {description && (
-            <p className="text-sm text-white/60 truncate mt-0.5">
+            <p className="text-sm text-white/60 mt-0.5">
               {description}
             </p>
           )}

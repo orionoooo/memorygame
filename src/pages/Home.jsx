@@ -193,7 +193,7 @@ export function Home() {
           className="mb-6"
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
           {games.map((game, index) => (
             <Link key={game.id} to={game.path} className="block">
               <div
