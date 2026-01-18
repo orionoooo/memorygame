@@ -6,9 +6,9 @@ export function Layout({ children }) {
   const isDashboard = location.pathname === '/dashboard'
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
-      {/* Animated background shapes - abstract gradients */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    <div className="min-h-screen relative bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 w-full overflow-x-hidden">
+      {/* Animated background shapes - hidden on mobile for performance */}
+      <div className="hidden md:block fixed inset-0 overflow-hidden pointer-events-none">
         {/* Large floating gradient orbs */}
         <div
           className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full animate-float"

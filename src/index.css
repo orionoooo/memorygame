@@ -59,6 +59,9 @@
 html {
   /* Base 16px for rem calculations, actual size controlled by variables */
   font-size: 16px;
+  /* Prevent iOS text size adjustment */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -71,8 +74,23 @@ body {
   color: var(--color-text);
   min-height: 100vh;
   margin: 0;
+  padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Ensure proper mobile sizing */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Headings use display font with proper sizing */
