@@ -311,15 +311,6 @@ export function MemoryCards() {
         </Button>
       </div>
 
-      {/* Done for today button */}
-      <div className="text-center mt-8">
-        <button
-          onClick={() => navigate('/done')}
-          className="bg-white hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 px-6 py-3 rounded-xl text-lg transition-all border-2 border-slate-200 hover:border-emerald-400 shadow-sm"
-        >
-          Done for today? / Xong rồi?
-        </button>
-      </div>
 
       {/* Floating help button - always visible */}
       <HelpButton
